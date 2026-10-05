@@ -1,0 +1,580 @@
+/* ==========================================================================
+   TailStream UI Design System (Human-Crafted Broadcast Console Aesthetic)
+   Inspired by: Teenage Engineering, Braun, Sony Broadcast & Ableton Live
+   Zero AI-Slop: No generic purple glow blobs, no fake empty-space filler.
+   ========================================================================== */
+
+:root {
+  /* Surface Palette: Physical Matte Slate & Anodized Carbon */
+  --chassis-bg: #090a0f;
+  --surface-plate: #11141c;
+  --surface-plate-raised: #181d28;
+  --surface-inset: #0b0d13;
+  
+  /* Precision Borders: Physical Millimeter Bevels */
+  --border-subtle: #202636;
+  --border-strong: #2f384f;
+  --border-highlight: rgba(255, 255, 255, 0.12);
+
+  /* Functional Hardware Accent Indicators */
+  --accent-amber: #f59e0b;       /* Signal / Warning */
+  --accent-cyan: #06b6d4;        /* Digital Readout / Stream */
+  --accent-emerald: #10b981;     /* Verified Audio / Online */
+  --accent-scarlet: #ef4444;     /* Live / Active */
+  --accent-laser: #38bdf8;       /* Primary Focus */
+
+  /* Netflix / Cinema Design Tokens (agency-ui-designer) */
+  --cinema-bg: #0b0c10;
+  --cinema-surface: #13151b;
+  --cinema-surface-elevated: #1a1d26;
+  --cinema-card: #161822;
+  --cinema-red: #e50914;
+  --cinema-red-hover: #b80710;
+  --cinema-red-glow: rgba(229, 9, 20, 0.4);
+  --cinema-border: rgba(255, 255, 255, 0.08);
+  --cinema-border-hover: rgba(255, 255, 255, 0.25);
+
+  /* Text & Readouts */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-mono-readout: #38bdf8;
+
+  /* Typography: Curated Pairings (Human-Crafted Bricolage Grotesque) */
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* 3D Scene & Perspective Tokens (agency-3d-scene-developer) */
+  --perspective: 1200px;
+  --card-3d-rotate-max: 12deg;
+  --depth-shadow-3d: 0 10px 30px -10px rgba(0, 0, 0, 0.8), 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+
+  /* Spacing Scale (4px base unit) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Radius: Clean, Technical Chamfers (Avoid over-bloated 30px pill cards) */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Transitions */
+  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reset & Ergonomics */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100%;
+  background-color: var(--chassis-bg);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Headings: Space Grotesk with Optical Negative Tracking */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  letter-spacing: -0.028em;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+/* Tabular Figures: Anti-Jitter Calibration for Metrics & Timers */
+.tnum,
+.studio-table td,
+.studio-table th,
+kbd,
+code,
+time,
+span[style*="var(--font-mono)"],
+span[style*="fontFamily: 'var(--font-mono)'"] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+}
+
+/* Subtle Technical Grid Texture instead of AI purple blur blob */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-inset);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-xs);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Mechanical Hardware Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 0.825rem;
+  font-weight: 500;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+  min-height: 38px;
+}
+
+.btn-primary {
+  background: #1e293b;
+  color: #ffffff;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.btn-primary:hover {
+  background: #283548;
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+.btn-primary:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+.btn-secondary:active {
+  transform: translateY(1px);
+}
+
+.btn-accent {
+  background: #0284c7;
+  color: #ffffff;
+  border: 1px solid #38bdf8;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+}
+.btn-accent:hover {
+  background: #0369a1;
+}
+
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+}
+
+/* Tactile Physical Keycaps for Power-Users */
+.keycap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  background: #1e2433;
+  border: 1px solid #334155;
+  border-bottom: 2px solid #0f172a;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  line-height: 1;
+}
+
+/* Console Chassis Plate */
+.chassis-panel {
+  background: var(--surface-plate);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* High-Density Studio Table */
+.studio-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.825rem;
+  text-align: left;
+}
+
+.studio-table th {
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.725rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--surface-inset);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.studio-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.studio-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.studio-table tr.active-row td {
+  background: rgba(56, 189, 248, 0.08);
+  border-bottom-color: rgba(56, 189, 248, 0.2);
+}
+
+/* Technical Status Readout Badges */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+  font-size: 0.725rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.status-pill-ok {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.status-pill-warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--transition-normal) forwards;
+}
+
+/* ==========================================================================
+   agency-whimsy-injector: Playful Micro-Interactions & Delight Engine
+   ========================================================================== */
+
+/* Tactile Spring Physics for Buttons */
+.btn-whimsy {
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.btn-whimsy:hover {
+  transform: translateY(-2px) scale(1.025);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 10px rgba(56, 189, 248, 0.2);
+}
+.btn-whimsy:active {
+  transform: translateY(1px) scale(0.97);
+}
+
+/* Spinning Vinyl Turntable Animation for Active Audio Cards */
+@keyframes vinylSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.vinyl-disc {
+  position: relative;
+  border-radius: 50%;
+  animation: vinylSpin 3.5s linear infinite;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
+}
+
+.vinyl-disc.paused {
+  animation-play-state: paused;
+}
+
+/* Animated Soundwave EQ Bars */
+@keyframes soundwaveDance {
+  0%, 100% { height: 4px; }
+  50% { height: 16px; }
+}
+
+.soundwave-bar {
+  width: 3px;
+  background: var(--accent-laser);
+  border-radius: 2px;
+  animation: soundwaveDance 0.8s ease-in-out infinite;
+}
+.soundwave-bar:nth-child(2) { animation-delay: 0.15s; }
+.soundwave-bar:nth-child(3) { animation-delay: 0.3s; }
+.soundwave-bar:nth-child(4) { animation-delay: 0.45s; }
+
+/* Micro-Toast Spring In Animation */
+@keyframes toastSpringIn {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.88);
+  }
+  70% {
+    transform: translateY(-3px) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.whimsy-toast-enter {
+  animation: toastSpringIn 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Whimsical Queue Ping Badge Animation */
+@keyframes queuePing {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.24); filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.8)); color: #38bdf8; }
+  100% { transform: scale(1); }
+}
+
+.animate-queue-ping {
+  animation: queuePing 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Easter Egg Floating Celebration Particles */
+@keyframes floatUpAndWiggle {
+  0% {
+    transform: translateY(0) rotate(0deg) scale(0.8);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-15vh) rotate(15deg) scale(1.15);
+  }
+  50% {
+    transform: translateY(-55vh) rotate(-15deg) scale(1);
+  }
+  85% {
+    opacity: 0.95;
+    transform: translateY(-90vh) rotate(10deg) scale(1.05);
+  }
+  100% {
+    transform: translateY(-115vh) rotate(30deg) scale(0.8);
+    opacity: 0;
+  }
+}
+
+.whimsy-floating-emoji {
+  animation: floatUpAndWiggle cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  user-select: none;
+}
+
+/* Interactive Logo Click Spring */
+.brand-logo-bounce {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+}
+.brand-logo-bounce:hover {
+  transform: rotate(-6deg) scale(1.08);
+}
+.brand-logo-bounce:active {
+  transform: scale(0.92) rotate(4deg);
+}
+
+/* Respect user's accessibility reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .btn-whimsy,
+  .vinyl-disc,
+  .soundwave-bar,
+  .whimsy-toast-enter,
+  .animate-queue-ping,
+  .whimsy-floating-emoji,
+  .brand-logo-bounce,
+  .netflix-card {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ==========================================================================
+   agency-ui-designer: Netflix-Grade Streaming Architecture
+   ========================================================================== */
+
+/* No Scrollbar Utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Netflix Billboard / Spotlight Container */
+.netflix-billboard {
+  position: relative;
+  width: 100%;
+  min-height: 480px;
+  display: flex;
+  align-items: flex-end;
+  padding: 4rem 3rem 3rem;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  margin-bottom: 2.25rem;
+  border: 1px solid var(--cinema-border);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.8);
+}
+
+.netflix-billboard-vignette {
+  position: absolute;
+  inset: 0;
+  background: 
+    linear-gradient(to right, rgba(11, 12, 16, 0.98) 0%, rgba(11, 12, 16, 0.85) 45%, rgba(11, 12, 16, 0.25) 80%, transparent 100%),
+    linear-gradient(to top, rgba(11, 12, 16, 1) 0%, rgba(11, 12, 16, 0.5) 40%, transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Netflix Horizontal Content Rail */
+.netflix-row {
+  position: relative;
+  margin-bottom: 2.25rem;
+}
+
+.netflix-row-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  padding: 0 0.25rem;
+}
+
+.netflix-row-slider {
+  display: flex;
+  gap: 1.15rem;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding: 0.75rem 0.25rem 1.25rem;
+  position: relative;
+}
+
+/* Row Navigation Chevrons */
+.netflix-arrow {
+  position: absolute;
+  top: 55%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 96px;
+  background: rgba(11, 12, 16, 0.88);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--cinema-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f8fafc;
+  cursor: pointer;
+  z-index: 30;
+  transition: all var(--transition-fast);
+  opacity: 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+}
+
+.netflix-row:hover .netflix-arrow {
+  opacity: 1;
+}
+
+.netflix-arrow:hover {
+  background: var(--cinema-red);
+  color: #ffffff;
+  border-color: var(--cinema-red);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.netflix-arrow-left {
+  left: 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.netflix-arrow-right {
+  right: 0;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+/* Netflix Media Card (16:9 for Video, 1:1 for Audio) */
+.netflix-card {
+  position: relative;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--cinema-card);
+  border: 1px solid var(--cinema-border);
+  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease, border-color 0.25s ease;
+  cursor: pointer;
+}
+
+.netflix-card:hover {
+  transform: translateY(-8px) scale(1.06);
+  z-index: 25;
+  border-color: var(--cinema-border-hover);
+  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.9), 0 0 1px 1px rgba(255, 255, 255, 0.15);
+}
+
+.netflix-card-video {
+  width: 290px;
+}
+
+.netflix-card-audio {
+  width: 220px;
+}
+
+/* Glowing Red Stream Button */
+.btn-netflix {
+  background: var(--cinema-red);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-weight: 600;
+  box-shadow: 0 4px 16px var(--cinema-red-glow);
+}
+.btn-netflix:hover {
+  background: var(--cinema-red-hover);
+  box-shadow: 0 6px 24px rgba(229, 9, 20, 0.65);
+  transform: translateY(-1px);
+}
+.btn-netflix:active {
+  transform: translateY(1px);
+}

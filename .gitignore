@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production build outputs
+dist/
+dist-ssr/
+
+# Security & Credentials - DO NOT COMMIT
+.redmoon_token
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Heavy media assets (audio, video)
+media/*.mp4
+media/*.mkv
+media/*.webm
+media/*.mov
+media/*.mp3
+media/*.wav
+media/*.flac
+media/samples/*.wav
+media/samples/*.mp4
+media/samples/*.mp3
