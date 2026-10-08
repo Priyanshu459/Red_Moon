@@ -7,36 +7,53 @@ import os from 'os';
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mkv', '.webm', '.mov', '.avi', '.m4v', '.wmv']);
 const AUDIO_EXTENSIONS = new Set(['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.opus']);
 
-// Default directories to scan on Windows / OS
-export function getDefaultDirectories() {
-  const home = os.homedir();
-  const dirs = [];
+const FOLDERS_CONFIG_FILE = path.resolve('./.redmoon_folders.json');
 
-  const candidates = [
-    path.join(home, 'Videos'),
-    path.join(home, 'Music'),
-    path.join(home, 'Downloads'),
-    path.resolve('./media/samples'),
-  ];
-
-  for (const dir of candidates) {
-    if (fs.existsSync(dir)) {
-      dirs.push(dir);
-    }
-  }
-
-  // Ensure local sample folder exists
-  const sampleDir = path.resolve('./media/samples');
-  if (!fs.existsSync(sampleDir)) {
+/**
+ * Loads explicitly pointed media directories from persistent configuration.
+ * Strictly adheres to zero-default storage access: does NOT auto-scan user drives or default folders.
+ */
+export function getPointedDirectories() {
+  if (fs.existsSync(FOLDERS_CONFIG_FILE)) {
     try {
-      fs.mkdirSync(sampleDir, { recursive: true });
-      if (!dirs.includes(sampleDir)) dirs.push(sampleDir);
+      const raw = fs.readFileSync(FOLDERS_CONFIG_FILE, 'utf8');
+      const data = JSON.parse(raw);
+      if (Array.isArray(data)) {
+        return data.filter((d) => typeof d === 'string' && fs.existsSync(d));
+      }
     } catch {
       // ignore
     }
   }
 
-  return dirs;
+  // Fallback demo sandbox: only include isolated local sample media if present
+  const sampleDir = path.resolve('./media/samples');
+  if (fs.existsSync(sampleDir)) {
+    return [sampleDir];
+  }
+
+  return [];
+}
+
+/**
+ * Persists the user's pointed media directories to .redmoon_folders.json.
+ */
+export function savePointedDirectories(dirs) {
+  try {
+    const valid = Array.from(
+      new Set(dirs.filter((d) => typeof d === 'string' && fs.existsSync(d)).map((d) => path.resolve(d)))
+    );
+    fs.writeFileSync(FOLDERS_CONFIG_FILE, JSON.stringify(valid, null, 2), 'utf8');
+    return valid;
+  } catch (err) {
+    console.error('Failed to save pointed directories config:', err.message);
+    return dirs;
+  }
+}
+
+// Backward-compatibility export
+export function getDefaultDirectories() {
+  return getPointedDirectories();
 }
 
 export function scanDirectory(dirPath, mediaList = [], depth = 0, maxDepth = 3) {

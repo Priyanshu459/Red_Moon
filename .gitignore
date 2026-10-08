@@ -6,9 +6,14 @@ node_modules/
 # Production build outputs
 dist/
 dist-ssr/
+dist-app/
+dist-server/
 
 # Security & Credentials - DO NOT COMMIT
 .redmoon_token
+.redmoon_folders.json
+user_settings.json
+scratch/
 .env
 .env.*
 !.env.example

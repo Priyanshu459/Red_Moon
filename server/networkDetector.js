@@ -72,7 +72,7 @@ export function getNetworkInfo() {
   } catch {
     // Fallback: check tailscale ip -4
     try {
-      const cliOutput = execSync('tailscale ip -4', { encoding: 'utf8', timeout: 1500, stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+      const cliOutput = execFileSync('tailscale', ['ip', '-4'], { encoding: 'utf8', timeout: 1500, stdio: ['pipe', 'pipe', 'ignore'] }).trim();
       if (cliOutput && cliOutput.startsWith('100.')) {
         tailscaleIp = cliOutput;
         tailscaleState = 'connected';

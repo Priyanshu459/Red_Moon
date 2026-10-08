@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { exec } from 'child_process';
+import { exec, spawn, execFileSync } from 'child_process';
 
 const ALLOWED_MEDIA_EXTENSIONS = new Set([
   '.mp4', '.mkv', '.webm', '.mov', '.avi', '.m4v', '.wmv',
@@ -77,6 +77,28 @@ export function getSuggestedFolders(watchedDirectories = []) {
 }
 
 /**
+ * Get available drive letters on Windows (e.g. C:\, D:\)
+ */
+export function getAvailableDrives() {
+  if (process.platform !== 'win32') {
+    return ['/'];
+  }
+  const drives = [];
+  const letters = 'CDEFGHIJKLMNOPQRSTUVWXYZAB'.split('');
+  for (const letter of letters) {
+    const driveRoot = `${letter}:\\`;
+    try {
+      if (fs.existsSync(driveRoot)) {
+        drives.push(driveRoot);
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return drives.length > 0 ? drives : ['C:\\'];
+}
+
+/**
  * List subdirectories within a given path for the in-modal directory explorer.
  */
 export function browseDirectories(requestedPath) {
@@ -91,15 +113,38 @@ export function browseDirectories(requestedPath) {
     target = os.homedir();
   }
 
+  try {
+    if (fs.existsSync(target)) {
+      target = fs.realpathSync(target);
+    }
+  } catch {
+    // fallback
+  }
+
   const stat = fs.statSync(target);
   if (!stat.isDirectory()) {
     target = path.dirname(target);
   }
 
-  const normalized = target.toLowerCase();
-  // Protected system folders check
-  if (normalized.includes('\\windows') || normalized.includes('\\$recycle.bin')) {
-    throw new Error('Access denied: Cannot browse protected system directory');
+  const normalized = path.normalize(target).toLowerCase();
+  // AppSec: Protected system & credential folders check (CWE-22 / CWE-200 mitigation)
+  const FORBIDDEN_DIRS = [
+    '\\windows', '/windows',
+    '\\$recycle.bin', '/$recycle.bin',
+    '\\program files', '/program files',
+    '\\.ssh', '/.ssh',
+    '\\.aws', '/.aws',
+    '\\.azure', '/.azure',
+    '\\.kube', '/.kube',
+    '\\.gnupg', '/.gnupg',
+    '\\.config', '/.config',
+    '\\system volume information', '/system volume information',
+    '\\credentials', '/credentials',
+    '\\appdata\\local\\elevateddiagnostics', '/appdata/local/elevateddiagnostics',
+  ];
+
+  if (FORBIDDEN_DIRS.some((token) => normalized.includes(token))) {
+    throw new Error('Access denied: Cannot browse protected directory');
   }
 
   const entries = fs.readdirSync(target, { withFileTypes: true });
@@ -107,8 +152,19 @@ export function browseDirectories(requestedPath) {
   let mediaCount = 0;
 
   for (const entry of entries) {
-    // Skip hidden files and special directories
-    if (entry.name.startsWith('.') || entry.name.startsWith('$') || entry.name === 'node_modules' || entry.name === 'AppData') {
+    // Skip hidden files, system directories, and sensitive credential folders
+    const nameLower = entry.name.toLowerCase();
+    if (
+      entry.name.startsWith('.') ||
+      entry.name.startsWith('$') ||
+      nameLower === 'node_modules' ||
+      nameLower === 'appdata' ||
+      nameLower === 'credentials' ||
+      nameLower === '.git' ||
+      nameLower === '.env' ||
+      nameLower === 'id_rsa' ||
+      nameLower === 'id_ed25519'
+    ) {
       continue;
     }
 
@@ -134,26 +190,128 @@ export function browseDirectories(requestedPath) {
     parentPath: isAtRoot ? null : parent,
     subdirectories: subdirs,
     mediaFilesCount: mediaCount,
+    availableDrives: getAvailableDrives(),
   };
+}
+
+let currentDialogProcess = null;
+let currentDialogResolve = null;
+
+/**
+ * Cancel any ongoing native folder picker process immediately without shell invocation (CWE-78 mitigation)
+ */
+export function cancelNativeFolderDialog() {
+  if (currentDialogResolve) {
+    currentDialogResolve({ success: false, cancelled: true });
+    currentDialogResolve = null;
+  }
+  if (currentDialogProcess) {
+    try {
+      const pid = currentDialogProcess.pid;
+      if (process.platform === 'win32' && pid) {
+        // AppSec: Use execFileSync instead of shell command
+        execFileSync('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore' });
+      } else {
+        currentDialogProcess.kill();
+      }
+    } catch {
+      // ignore
+    }
+    currentDialogProcess = null;
+    return true;
+  }
+  return false;
 }
 
 /**
  * Trigger native Windows FolderBrowserDialog on the host desktop.
+ * Uses Base64 EncodedCommand and attaches directly to the active foreground
+ * browser window handle via Win32 user32.dll GetForegroundWindow.
  */
 export function openNativeFolderDialog() {
   return new Promise((resolve) => {
-    // PowerShell STA FolderBrowserDialog command
-    const psCmd = `powershell -NoProfile -STA -Command "[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = 'Select Media Folder for Red Moon'; $f.ShowNewFolderButton = $false; if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::WriteLine($f.SelectedPath) }"`;
+    if (process.platform !== 'win32') {
+      return resolve({ success: false, error: 'Native folder dialog is only supported on Windows' });
+    }
 
-    exec(psCmd, { timeout: 60000 }, (error, stdout) => {
-      if (error) {
-        return resolve({ success: false, error: error.message });
+    // Terminate any existing orphan dialog process before launching a new one
+    cancelNativeFolderDialog();
+
+    const psScript = `
+$ProgressPreference = 'SilentlyContinue'
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type @'
+using System;
+using System.Windows.Forms;
+using System.Runtime.InteropServices;
+
+public class WindowWrapper : IWin32Window {
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
+    public IntPtr Handle {
+        get {
+            IntPtr fg = GetForegroundWindow();
+            return fg != IntPtr.Zero ? fg : IntPtr.Zero;
+        }
+    }
+}
+'@ -ReferencedAssemblies System.Windows.Forms
+
+$owner = New-Object WindowWrapper
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.Description = "Select Media Folder for Red Moon"
+$dialog.ShowNewFolderButton = $true
+$dialog.RootFolder = [System.Environment+SpecialFolder]::MyComputer
+
+$res = $dialog.ShowDialog($owner)
+if ($res -eq [System.Windows.Forms.DialogResult]::OK -and $dialog.SelectedPath) {
+    [Console]::WriteLine($dialog.SelectedPath)
+} else {
+    [Console]::WriteLine("__CANCELLED__")
+}
+`;
+
+    const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
+    let stdoutData = '';
+
+    const proc = spawn('powershell.exe', ['-NoProfile', '-STA', '-EncodedCommand', encoded], {
+      stdio: ['ignore', 'pipe', 'ignore']
+    });
+
+    currentDialogProcess = proc;
+    currentDialogResolve = resolve;
+
+    proc.stdout.on('data', (chunk) => {
+      stdoutData += chunk.toString();
+    });
+
+    const timeout = setTimeout(() => {
+      cancelNativeFolderDialog();
+    }, 25000);
+
+    proc.on('close', () => {
+      clearTimeout(timeout);
+      currentDialogProcess = null;
+      if (currentDialogResolve) {
+        const selected = stdoutData.trim();
+        if (selected && selected !== '__CANCELLED__' && fs.existsSync(selected)) {
+          currentDialogResolve({ success: true, selectedPath: selected });
+        } else {
+          currentDialogResolve({ success: false, cancelled: true });
+        }
+        currentDialogResolve = null;
       }
-      const selected = stdout.trim();
-      if (selected && fs.existsSync(selected)) {
-        return resolve({ success: true, selectedPath: selected });
+    });
+
+    proc.on('error', (err) => {
+      clearTimeout(timeout);
+      currentDialogProcess = null;
+      if (currentDialogResolve) {
+        currentDialogResolve({ success: false, error: err.message });
+        currentDialogResolve = null;
       }
-      return resolve({ success: false, cancelled: true });
     });
   });
 }
+
