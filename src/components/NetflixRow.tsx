@@ -7,6 +7,7 @@ interface NetflixRowProps {
   title: string;
   badge?: string;
   items: MediaItem[];
+  matchScores?: Record<string, number>;
   currentAudioId: string | null;
   isPlayingAudio: boolean;
   onPlayVideo: (item: MediaItem) => void;
@@ -18,6 +19,7 @@ export const NetflixRow: React.FC<NetflixRowProps> = ({
   title,
   badge,
   items,
+  matchScores,
   currentAudioId,
   isPlayingAudio,
   onPlayVideo,
@@ -57,13 +59,14 @@ export const NetflixRow: React.FC<NetflixRowProps> = ({
     <div className="netflix-row">
       {/* Category Header */}
       <div className="netflix-row-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
           <h3
             style={{
-              fontSize: '1.25rem',
+              fontSize: 'clamp(1.05rem, 3.2vw, 1.25rem)',
               fontWeight: 700,
               color: '#f8fafc',
               letterSpacing: '-0.02em',
+              wordBreak: 'break-word',
             }}
           >
             {title}
@@ -77,6 +80,7 @@ export const NetflixRow: React.FC<NetflixRowProps> = ({
                 padding: '2px 8px',
                 borderRadius: '12px',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
+                whiteSpace: 'nowrap',
               }}
             >
               {badge}
@@ -84,7 +88,7 @@ export const NetflixRow: React.FC<NetflixRowProps> = ({
           )}
         </div>
 
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
           {items.length} {items.length === 1 ? 'item' : 'items'}
         </span>
       </div>
@@ -112,6 +116,7 @@ export const NetflixRow: React.FC<NetflixRowProps> = ({
             <NetflixCard
               key={item.id}
               item={item}
+              matchScore={matchScores?.[item.id]}
               isCurrentAudio={currentAudioId === item.id}
               isPlayingAudio={isPlayingAudio}
               onPlayVideo={onPlayVideo}

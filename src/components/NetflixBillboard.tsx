@@ -104,12 +104,13 @@ export const NetflixBillboard: React.FC<NetflixBillboardProps> = ({ item, onPlay
         {/* Hero Title */}
         <h1
           style={{
-            fontSize: 'clamp(2rem, 4.5vw, 3.25rem)',
+            fontSize: 'clamp(1.4rem, 4.5vw, 3.25rem)',
             fontWeight: 800,
             color: '#f8fafc',
-            lineHeight: 1.08,
+            lineHeight: 1.12,
             letterSpacing: '-0.035em',
             textShadow: '0 4px 20px rgba(0, 0, 0, 0.8)',
+            wordBreak: 'break-word',
           }}
         >
           {title}
@@ -119,7 +120,7 @@ export const NetflixBillboard: React.FC<NetflixBillboardProps> = ({ item, onPlay
         {artist && (
           <h3
             style={{
-              fontSize: '1.2rem',
+              fontSize: 'clamp(0.95rem, 2.5vw, 1.2rem)',
               fontWeight: 500,
               color: 'var(--text-secondary)',
               letterSpacing: '-0.01em',
@@ -183,7 +184,7 @@ export const NetflixBillboard: React.FC<NetflixBillboardProps> = ({ item, onPlay
         {/* Synopsis / Description */}
         <p
           style={{
-            fontSize: '0.9rem',
+            fontSize: 'clamp(0.8rem, 2vw, 0.9rem)',
             color: '#cbd5e1',
             lineHeight: 1.5,
             maxWidth: '560px',
@@ -196,12 +197,13 @@ export const NetflixBillboard: React.FC<NetflixBillboardProps> = ({ item, onPlay
         </p>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginTop: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
           <button
             className="btn btn-netflix btn-whimsy"
             style={{
-              padding: '0.75rem 1.75rem',
-              fontSize: '0.95rem',
+              padding: '0.65rem 1.6rem',
+              minHeight: '42px',
+              fontSize: '0.9rem',
               fontWeight: 700,
               gap: '8px',
               borderRadius: '6px',
@@ -216,8 +218,9 @@ export const NetflixBillboard: React.FC<NetflixBillboardProps> = ({ item, onPlay
             <button
               className="btn btn-secondary btn-whimsy"
               style={{
-                padding: '0.75rem 1.35rem',
-                fontSize: '0.9rem',
+                padding: '0.65rem 1.25rem',
+                minHeight: '42px',
+                fontSize: '0.85rem',
                 gap: '8px',
                 background: 'rgba(255, 255, 255, 0.08)',
                 backdropFilter: 'blur(10px)',

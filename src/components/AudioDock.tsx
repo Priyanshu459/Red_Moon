@@ -1,5 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { MediaItem } from '../types/media';
+import { RedMoonSettings } from '../types/settings';
+import { audioEngine } from '../services/audioEngine';
 import {
   Play,
   Pause,
@@ -11,6 +13,7 @@ import {
   VolumeX,
   ListMusic,
   X,
+  Sliders,
 } from 'lucide-react';
 import { AudioVisualizer } from './AudioVisualizer';
 import { KeycapBadge } from './KeycapBadge';
@@ -27,7 +30,10 @@ interface AudioDockProps {
   onRemoveFromQueue: (index: number) => void;
   onCloseDock: () => void;
   autoplayNext: boolean;
+  settings?: RedMoonSettings;
+  onOpenSettings?: () => void;
 }
+
 
 function formatDuration(seconds: number): string {
   if (isNaN(seconds) || seconds < 0) return '00:00';
@@ -47,8 +53,24 @@ export const AudioDock: React.FC<AudioDockProps> = ({
   onRemoveFromQueue,
   onCloseDock,
   autoplayNext,
+  settings,
+  onOpenSettings,
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Connect Audio Element to Web Audio DSP Engine
+  useEffect(() => {
+    if (audioRef.current) {
+      audioEngine.attachMediaElement(audioRef.current, {
+        enableDsp: settings?.audio?.webAudioEngine ?? true,
+      });
+      if (settings?.audio) {
+        audioEngine.setEqualizerBands(settings.audio.equalizerBands);
+        audioEngine.setLoudnessNormalization(settings.audio.loudnessNormalization);
+      }
+    }
+  }, [currentTrack, settings]);
+
 
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -152,10 +174,10 @@ export const AudioDock: React.FC<AudioDockProps> = ({
           className="chassis-panel animate-fade-in"
           style={{
             position: 'fixed',
-            bottom: '90px',
-            right: '24px',
-            width: '340px',
-            maxHeight: '400px',
+            bottom: 'calc(70px + var(--sab))',
+            right: 'clamp(8px, 3vw, 24px)',
+            width: 'clamp(280px, calc(100vw - 16px), 340px)',
+            maxHeight: 'min(65vh, 400px)',
             zIndex: 9990,
             display: 'flex',
             flexDirection: 'column',
@@ -249,12 +271,12 @@ export const AudioDock: React.FC<AudioDockProps> = ({
         </div>
       )}
 
-      {/* Floating Bottom Broadcast Audio Deck */}
+      {/* Desktop Audio Deck (Hidden on mobile) */}
       <div
-        className="chassis-panel"
+        className="chassis-panel hide-mobile"
         style={{
           position: 'fixed',
-          bottom: '12px',
+          bottom: 'calc(12px + var(--sab))',
           left: '50%',
           transform: 'translateX(-50%)',
           width: 'calc(100% - 24px)',
@@ -414,11 +436,184 @@ export const AudioDock: React.FC<AudioDockProps> = ({
             <span>Queue</span>
           </button>
 
+          {onOpenSettings && (
+            <button
+              className="btn btn-secondary btn-whimsy"
+              onClick={onOpenSettings}
+              title="Audio Equalizer & Sound Settings"
+              style={{
+                minHeight: '30px',
+                height: '30px',
+                padding: '0 8px',
+                fontSize: '0.725rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <Sliders size={13} />
+              <span>EQ</span>
+            </button>
+          )}
+
           <button
             className="btn btn-secondary btn-icon"
             onClick={onCloseDock}
             title="Dismiss Audio Deck"
             style={{ width: '26px', height: '26px' }}
+          >
+            <X size={13} />
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Spotify-Style Mini Player Bar (Visible on mobile <= 768px) */}
+      <div
+        className="chassis-panel show-mobile"
+        style={{
+          position: 'fixed',
+          bottom: 'calc(8px + var(--sab))',
+          left: '8px',
+          right: '8px',
+          height: '56px',
+          padding: '0 10px',
+          zIndex: 9900,
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          background: 'rgba(15, 18, 26, 0.96)',
+          border: '1px solid var(--border-strong)',
+          borderRadius: '12px',
+          boxShadow: '0 8px 30px rgba(0, 0, 0, 0.85), 0 0 15px rgba(229, 9, 20, 0.15)',
+          backdropFilter: 'blur(16px)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Top 2.5px Progress Line */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '2.5px',
+            background: 'rgba(255, 255, 255, 0.1)',
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`,
+              background: 'linear-gradient(90deg, #e50914, #38bdf8)',
+              transition: 'width 0.15s linear',
+            }}
+          />
+        </div>
+
+        {/* Left: Track Information & Tap to View Queue */}
+        <div
+          onClick={() => setIsQueueOpen(!isQueueOpen)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            minWidth: 0,
+            flex: 1,
+            cursor: 'pointer',
+          }}
+        >
+          <div
+            style={{
+              width: '34px',
+              height: '34px',
+              borderRadius: '6px',
+              background: 'rgba(56, 189, 248, 0.15)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--accent-laser)',
+              flexShrink: 0,
+            }}
+          >
+            {isPlaying ? (
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', height: '14px' }}>
+                <span className="soundwave-bar" style={{ height: '100%' }} />
+                <span className="soundwave-bar" style={{ height: '60%' }} />
+                <span className="soundwave-bar" style={{ height: '80%' }} />
+              </div>
+            ) : (
+              <Play size={14} />
+            )}
+          </div>
+
+          <div style={{ minWidth: 0, overflow: 'hidden' }}>
+            <h4
+              style={{
+                fontSize: '0.825rem',
+                fontWeight: 600,
+                color: '#ffffff',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                lineHeight: '1.25',
+              }}
+            >
+              {cleanMediaTitle(currentTrack.name || currentTrack.title).title}
+            </h4>
+            <div
+              style={{
+                fontSize: '0.7rem',
+                color: 'var(--text-muted)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {cleanMediaTitle(currentTrack.name || currentTrack.title).artist || formatFolderLabel(currentTrack.folder)}
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Essential Touch Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+          <button
+            className="btn btn-primary btn-icon btn-whimsy"
+            style={{ width: '38px', height: '38px', background: '#e50914', borderColor: '#e50914' }}
+            onClick={onTogglePlay}
+            title={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isPlaying ? <Pause size={16} /> : <Play size={16} style={{ marginLeft: '2px' }} />}
+          </button>
+
+          <button
+            className="btn btn-secondary btn-icon btn-whimsy"
+            style={{ width: '34px', height: '34px' }}
+            onClick={onNext}
+            title="Next Track"
+          >
+            <SkipForward size={14} />
+          </button>
+
+          <button
+            className={`btn btn-secondary btn-icon btn-whimsy ${isQueuePing ? 'animate-queue-ping' : ''}`}
+            onClick={() => setIsQueueOpen(!isQueueOpen)}
+            style={{
+              width: '34px',
+              height: '34px',
+              color: isQueueOpen ? 'var(--accent-laser)' : 'var(--text-secondary)',
+            }}
+            title="Up Next Queue"
+          >
+            <ListMusic size={14} />
+          </button>
+
+          <button
+            className="btn btn-secondary btn-icon btn-whimsy"
+            style={{ width: '30px', height: '30px' }}
+            onClick={onCloseDock}
+            title="Close Audio Deck"
           >
             <X size={13} />
           </button>

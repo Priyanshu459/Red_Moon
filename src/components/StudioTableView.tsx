@@ -53,15 +53,16 @@ export const StudioTableView: React.FC<StudioTableViewProps> = ({
     <div
       className="chassis-panel"
       style={{
-        overflow: 'hidden',
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
         border: '1px solid var(--border-subtle)',
         background: 'var(--surface-plate)',
       }}
     >
-      <table className="studio-table">
+      <table className="studio-table" style={{ minWidth: '100%' }}>
         <thead>
           <tr>
-            <th style={{ width: '48px', textAlign: 'center' }}>#</th>
+            <th style={{ width: '40px', textAlign: 'center' }}>#</th>
             <th
               onClick={() => handleSort('name')}
               style={{ cursor: 'pointer', userSelect: 'none' }}
@@ -71,23 +72,25 @@ export const StudioTableView: React.FC<StudioTableViewProps> = ({
               </div>
             </th>
             <th
+              className="hide-mobile"
               onClick={() => handleSort('ext')}
-              style={{ width: '100px', cursor: 'pointer', userSelect: 'none' }}
+              style={{ width: '90px', cursor: 'pointer', userSelect: 'none' }}
             >
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                 Format <ArrowUpDown size={12} />
               </div>
             </th>
             <th
+              className="hide-mobile"
               onClick={() => handleSort('size')}
-              style={{ width: '120px', cursor: 'pointer', userSelect: 'none' }}
+              style={{ width: '100px', cursor: 'pointer', userSelect: 'none' }}
             >
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                 Size <ArrowUpDown size={12} />
               </div>
             </th>
-            <th style={{ width: '140px' }}>Folder</th>
-            <th style={{ width: '110px', textAlign: 'right' }}>Actions</th>
+            <th className="hide-mobile" style={{ width: '120px' }}>Folder</th>
+            <th style={{ width: '90px', textAlign: 'right' }}>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -155,7 +158,7 @@ export const StudioTableView: React.FC<StudioTableViewProps> = ({
                   </div>
                 </td>
 
-                <td>
+                <td className="hide-mobile">
                   <span
                     style={{
                       fontFamily: 'var(--font-mono)',
@@ -172,11 +175,11 @@ export const StudioTableView: React.FC<StudioTableViewProps> = ({
                   </span>
                 </td>
 
-                <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                <td className="hide-mobile" style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
                   {formatBytes(item.size)}
                 </td>
 
-                <td>
+                <td className="hide-mobile">
                   <span
                     style={{
                       fontSize: '0.75rem',

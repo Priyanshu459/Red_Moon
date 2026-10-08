@@ -191,12 +191,12 @@ export const StepQRCode: React.FC<StepQRCodeProps> = ({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'auto 1fr',
-          gap: '1.5rem',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+          gap: '1.25rem',
           alignItems: 'center',
           background: 'rgba(255, 255, 255, 0.02)',
           border: '1px solid var(--border-glass)',
-          padding: '1.5rem',
+          padding: 'clamp(0.75rem, 3vw, 1.5rem)',
           borderRadius: 'var(--radius-lg)',
         }}
       >

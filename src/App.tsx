@@ -10,13 +10,11 @@ import { Spatial3DCanvas } from './components/Spatial3DCanvas';
 import { WhimsyToast, ToastMessage } from './components/WhimsyToast';
 import { WhimsyParty } from './components/WhimsyParty';
 import { cleanMediaTitle } from './utils/mediaFormatter';
+import { recommendationEngine } from './services/recommendationEngine';
+import { NvidiaStudioModal, NvidiaProfile, NvidiaTelemetryData } from './components/NvidiaStudioModal';
+import { SettingsModal } from './components/SettingsModal/SettingsModal';
+import { RedMoonSettings, DEFAULT_REDMOON_SETTINGS, THEME_PRESETS } from './types/settings';
 
-const DEFAULT_SETTINGS: StreamSettings = {
-  bufferMode: 'standard',
-  audioVolume: 0.85,
-  videoAutoplay: true,
-  customHostOverride: '',
-};
 
 export const App: React.FC = () => {
   const [network, setNetwork] = useState<NetworkInfo | null>(null);
@@ -26,6 +24,22 @@ export const App: React.FC = () => {
   const [activeNavTab, setActiveNavTab] = useState<NavTab>('home');
   const [viewMode, setViewMode] = useState<ViewMode>('rails');
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Stream Access Token Extraction & Persistence (Prefers sessionStorage for tab isolation)
+  const [authToken, setAuthToken] = useState<string>(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlToken = urlParams.get('token');
+      if (urlToken) {
+        sessionStorage.setItem('redmoon_token', urlToken);
+        localStorage.setItem('redmoon_token', urlToken);
+        return urlToken;
+      }
+      return sessionStorage.getItem('redmoon_token') || localStorage.getItem('redmoon_token') || '';
+    } catch {
+      return '';
+    }
+  });
 
   // Active Players State
   const [activeVideo, setActiveVideo] = useState<MediaItem | null>(null);
@@ -57,37 +71,119 @@ export const App: React.FC = () => {
   // Modals
   const [isTailscaleModalOpen, setIsTailscaleModalOpen] = useState(false);
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
-
-  // Settings
-  const [settings, setSettings] = useState<StreamSettings>(() => {
+  const [isNvidiaModalOpen, setIsNvidiaModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [nvidiaTelemetry, setNvidiaTelemetry] = useState<NvidiaTelemetryData | null>(null);
+  const [activeRendererString, setActiveRendererString] = useState<string>('');
+  const [nvidiaProfile, setNvidiaProfile] = useState<NvidiaProfile>(() => {
     try {
-      const saved = localStorage.getItem('tailstream_settings');
-      return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
+      return (localStorage.getItem('redmoon_nvidia_profile') as NvidiaProfile) || 'turing';
     } catch {
-      return DEFAULT_SETTINGS;
+      return 'turing';
     }
   });
 
-  const handleSaveSettings = (newSettings: StreamSettings) => {
-    setSettings(newSettings);
-    localStorage.setItem('tailstream_settings', JSON.stringify(newSettings));
+  const handleProfileChange = (p: NvidiaProfile) => {
+    setNvidiaProfile(p);
+    localStorage.setItem('redmoon_nvidia_profile', p);
+    addToast(`NVIDIA Profile: ${p.toUpperCase()} ⚡`, 'sparkles', 'GPU');
   };
 
-  // Stream Access Token Extraction & Persistence
-  const [authToken, setAuthToken] = useState<string>(() => {
+  const fetchNvidiaTelemetry = useCallback(async () => {
     try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlToken = urlParams.get('token');
-      if (urlToken) {
-        sessionStorage.setItem('redmoon_token', urlToken);
-        localStorage.setItem('redmoon_token', urlToken);
-        return urlToken;
+      const headers: Record<string, string> = {};
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+      const url = authToken ? `/api/system/nvidia?token=${encodeURIComponent(authToken)}` : '/api/system/nvidia';
+      const res = await fetch(url, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setNvidiaTelemetry(data);
       }
-      return sessionStorage.getItem('redmoon_token') || localStorage.getItem('redmoon_token') || '';
     } catch {
-      return '';
+      // offline
+    }
+  }, [authToken]);
+
+  useEffect(() => {
+    fetchNvidiaTelemetry();
+    const interval = setInterval(fetchNvidiaTelemetry, 8000);
+    return () => clearInterval(interval);
+  }, [fetchNvidiaTelemetry]);
+
+  // Global Red Moon Settings & Persistence
+  const [settings, setSettings] = useState<RedMoonSettings>(() => {
+    try {
+      const saved = localStorage.getItem('redmoon_user_settings');
+      return saved ? { ...DEFAULT_REDMOON_SETTINGS, ...JSON.parse(saved) } : DEFAULT_REDMOON_SETTINGS;
+    } catch {
+      return DEFAULT_REDMOON_SETTINGS;
     }
   });
+
+  // Fetch server-persisted settings on mount (Authenticated)
+  useEffect(() => {
+    const headers: Record<string, string> = {};
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+    const url = authToken ? `/api/system/settings?token=${encodeURIComponent(authToken)}` : '/api/system/settings';
+    fetch(url, { headers })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.settings) {
+          setSettings((prev) => ({ ...prev, ...data.settings }));
+        }
+      })
+      .catch(() => {});
+  }, [authToken]);
+
+  // Synchronize CSS Theme Tokens on :root dynamically
+  useEffect(() => {
+    const theme = THEME_PRESETS[settings.appearance.themeAccent] || THEME_PRESETS.crimson;
+    document.documentElement.style.setProperty('--cinema-red', theme.color);
+    document.documentElement.style.setProperty('--cinema-red-hover', theme.hover);
+    document.documentElement.style.setProperty('--cinema-red-glow', theme.glow);
+  }, [settings.appearance.themeAccent]);
+
+  const handleSaveSettings = (newSettings: RedMoonSettings) => {
+    setSettings(newSettings);
+    localStorage.setItem('redmoon_user_settings', JSON.stringify(newSettings));
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+    fetch('/api/system/settings', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(newSettings),
+    }).catch(() => {});
+  };
+
+  const tailscaleSettingsAdapter: StreamSettings = {
+    bufferMode: settings.network.bufferMode,
+    audioVolume: settings.audio.defaultVolume,
+    videoAutoplay: settings.video.autoplayNext,
+    customHostOverride: settings.network.customHostOverride,
+  };
+
+  const handleTailscaleSaveSettings = (partial: StreamSettings) => {
+    const updated: RedMoonSettings = {
+      ...settings,
+      network: {
+        ...settings.network,
+        bufferMode: partial.bufferMode,
+        customHostOverride: partial.customHostOverride,
+      },
+      audio: {
+        ...settings.audio,
+        defaultVolume: partial.audioVolume,
+      },
+      video: {
+        ...settings.video,
+        autoplayNext: partial.videoAutoplay,
+      },
+    };
+    handleSaveSettings(updated);
+  };
+
+
+
 
   // Fetch Network diagnostics
   const fetchNetwork = useCallback(async () => {
@@ -145,6 +241,9 @@ export const App: React.FC = () => {
     setCurrentAudio(item);
     setIsPlayingAudio(true);
 
+    // Record user playback telemetry for recommendation engine
+    recommendationEngine.recordPlay(item);
+
     // If queue is empty or doesn't have this item, add it
     if (!audioQueue.some((q) => q.id === item.id)) {
       setAudioQueue((prev) => [item, ...prev]);
@@ -162,6 +261,7 @@ export const App: React.FC = () => {
     if (!currentAudio) {
       setCurrentAudio(item);
       setIsPlayingAudio(true);
+      recommendationEngine.recordPlay(item);
     }
   };
 
@@ -171,6 +271,7 @@ export const App: React.FC = () => {
     const nextIndex = (currentIndex + 1) % audioQueue.length;
     setCurrentAudio(audioQueue[nextIndex]);
     setIsPlayingAudio(true);
+    recommendationEngine.recordPlay(audioQueue[nextIndex]);
   };
 
   const handlePrevAudio = () => {
@@ -179,6 +280,7 @@ export const App: React.FC = () => {
     const prevIndex = (currentIndex - 1 + audioQueue.length) % audioQueue.length;
     setCurrentAudio(audioQueue[prevIndex]);
     setIsPlayingAudio(true);
+    recommendationEngine.recordPlay(audioQueue[prevIndex]);
   };
 
   const handleRemoveFromQueue = (index: number) => {
@@ -190,6 +292,10 @@ export const App: React.FC = () => {
     // Pause audio while playing video
     if (isPlayingAudio) setIsPlayingAudio(false);
     setActiveVideo(item);
+
+    // Record user playback telemetry for recommendation engine
+    recommendationEngine.recordPlay(item);
+
     const { title } = cleanMediaTitle(item.name || item.title);
     addToast(`Playing "${title}"`, 'sparkles');
   };
@@ -230,7 +336,52 @@ export const App: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         setDirectories(data.directories);
-        addToast('Folder removed', 'check');
+        addToast('Folder removed from scope', 'check');
+        fetchMedia();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSetSingleDirectory = async (folderPath: string): Promise<boolean> => {
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+      const url = authToken ? `/api/media/directories/set?token=${encodeURIComponent(authToken)}` : '/api/media/directories/set';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ folderPath }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDirectories(data.directories);
+        const folderName = folderPath.split('\\').pop() || folderPath.split('/').pop() || 'folder';
+        addToast(`Storage scoped strictly to "${folderName}"`, 'sparkles', 'SANDBOX');
+        fetchMedia();
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleRevokeAllDirectories = async (): Promise<void> => {
+    try {
+      const headers: Record<string, string> = {};
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+      const url = authToken ? `/api/media/directories/all?token=${encodeURIComponent(authToken)}` : '/api/media/directories/all';
+      const res = await fetch(url, {
+        method: 'DELETE',
+        headers,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDirectories(data.directories || []);
+        addToast('All storage access revoked', 'check', 'LOCKED');
+        fetchMedia();
       }
     } catch (err) {
       console.error(err);
@@ -239,11 +390,15 @@ export const App: React.FC = () => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', paddingBottom: currentAudio ? '120px' : '32px', position: 'relative' }}>
-      {/* Three.js 3D Celestial Red Moon Scene */}
-      <Spatial3DCanvas
-        isPlaying={isPlayingAudio || isPartyMode}
-        onMoonInteract={handleMoonInteract}
-      />
+      {/* Three.js 3D Celestial Red Moon Scene (NVIDIA Profile Tuned) */}
+      {settings.appearance.enable3DSpace && (
+        <Spatial3DCanvas
+          isPlaying={isPlayingAudio || isPartyMode}
+          onMoonInteract={handleMoonInteract}
+          profile={nvidiaProfile}
+          onGpuDetected={setActiveRendererString}
+        />
+      )}
 
       {/* Celebratory Easter Egg Particle Overlay */}
       <WhimsyParty isActive={isPartyMode} onComplete={() => setIsPartyMode(false)} />
@@ -259,33 +414,66 @@ export const App: React.FC = () => {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         network={network}
+        directories={directories}
+        nvidiaTelemetry={nvidiaTelemetry}
+        activeRendererString={activeRendererString}
         onOpenTailscaleModal={() => setIsTailscaleModalOpen(true)}
         onOpenFolderModal={() => setIsFolderModalOpen(true)}
+        onOpenNvidiaModal={() => setIsNvidiaModalOpen(true)}
+        onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
         onRefreshMedia={fetchMedia}
         isRefreshing={isRefreshing}
         onEasterEgg={handleEasterEgg}
       />
 
-      <main style={{ flex: 1 }}>
-        <MediaLibrary
-          items={mediaItems}
-          queue={audioQueue}
-          searchQuery={searchQuery}
-          activeNavTab={activeNavTab}
-          viewMode={viewMode}
-          currentAudioId={currentAudio?.id || null}
-          isPlayingAudio={isPlayingAudio}
-          onPlayVideo={handlePlayVideo}
-          onPlayAudio={handlePlayAudio}
-          onQueueAudio={handleQueueAudio}
-          onOpenFolderModal={() => setIsFolderModalOpen(true)}
-        />
+      <main style={{ flex: 1, position: 'relative', zIndex: 1 }}>
+        {activeNavTab === 'settings' ? (
+          <SettingsModal
+            isOpen={true}
+            isEmbedded={true}
+            onClose={() => setActiveNavTab('home')}
+            settings={settings}
+            onSaveSettings={handleSaveSettings}
+            authToken={authToken}
+            onTriggerToast={addToast}
+          />
+        ) : (
+          <MediaLibrary
+            items={mediaItems}
+            queue={audioQueue}
+            searchQuery={searchQuery}
+            activeNavTab={activeNavTab}
+            viewMode={viewMode}
+            currentAudioId={currentAudio?.id || null}
+            isPlayingAudio={isPlayingAudio}
+            onPlayVideo={handlePlayVideo}
+            onPlayAudio={handlePlayAudio}
+            onQueueAudio={handleQueueAudio}
+            onOpenFolderModal={() => setIsFolderModalOpen(true)}
+            settings={settings}
+            onSaveSettings={handleSaveSettings}
+            onNavTabChange={setActiveNavTab}
+            onTriggerToast={addToast}
+          />
+        )}
       </main>
 
       {/* Video Cinema Player Modal */}
-      {activeVideo && (
-        <VideoModal item={activeVideo} onClose={() => setActiveVideo(null)} />
-      )}
+      {activeVideo && (() => {
+        const videoList = mediaItems.filter((i) => i.type === 'video');
+        const currIdx = videoList.findIndex((i) => i.id === activeVideo.id);
+        const nextVideoItem = currIdx >= 0 && currIdx < videoList.length - 1 ? videoList[currIdx + 1] : undefined;
+        return (
+          <VideoModal
+            item={activeVideo}
+            onClose={() => setActiveVideo(null)}
+            settings={settings}
+            onOpenSettings={() => setIsSettingsModalOpen(true)}
+            nextItem={nextVideoItem}
+            onPlayNext={(item) => setActiveVideo(item)}
+          />
+        );
+      })()}
 
       {/* Floating Persistent Audio Deck */}
       {currentAudio && (
@@ -305,7 +493,9 @@ export const App: React.FC = () => {
             setIsPlayingAudio(false);
             setCurrentAudio(null);
           }}
-          autoplayNext={settings.videoAutoplay}
+          autoplayNext={settings.video.autoplayNext}
+          settings={settings}
+          onOpenSettings={() => setIsSettingsModalOpen(true)}
         />
       )}
 
@@ -314,22 +504,47 @@ export const App: React.FC = () => {
         isOpen={isTailscaleModalOpen}
         onClose={() => setIsTailscaleModalOpen(false)}
         network={network}
-        settings={settings}
-        onSaveSettings={handleSaveSettings}
+        settings={tailscaleSettingsAdapter}
+        onSaveSettings={handleTailscaleSaveSettings}
+        authToken={authToken}
+        onRefreshNetwork={fetchNetwork}
       />
 
-      {/* Folder Manager Modal */}
+      {/* Storage Scope & Folder Manager Modal */}
       <FolderManagerModal
         isOpen={isFolderModalOpen}
         onClose={() => setIsFolderModalOpen(false)}
         directories={directories}
         onAddDirectory={handleAddDirectory}
+        onSetSingleDirectory={handleSetSingleDirectory}
         onRemoveDirectory={handleRemoveDirectory}
+        onRevokeAllDirectories={handleRevokeAllDirectories}
         onRefreshMedia={fetchMedia}
         authToken={authToken}
       />
+
+      {/* NVIDIA GeForce & RTX Studio Modal */}
+      <NvidiaStudioModal
+        isOpen={isNvidiaModalOpen}
+        onClose={() => setIsNvidiaModalOpen(false)}
+        activeRendererString={activeRendererString}
+        currentProfile={nvidiaProfile}
+        onProfileChange={handleProfileChange}
+        authToken={authToken}
+      />
+
+      {/* Global Settings & Multi-Media Control Center Modal */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        settings={settings}
+        onSaveSettings={handleSaveSettings}
+        authToken={authToken}
+        onTriggerToast={addToast}
+      />
     </div>
   );
+
 };
 
 export default App;

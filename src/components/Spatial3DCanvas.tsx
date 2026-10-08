@@ -1,44 +1,52 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
+import { NvidiaProfile } from './NvidiaStudioModal';
 
 interface Spatial3DCanvasProps {
   isPlaying: boolean;
   onMoonInteract?: () => void;
+  profile?: NvidiaProfile;
+  onGpuDetected?: (renderer: string) => void;
 }
 
-// Procedural Canvas Texture Generator for realistic Red Moon craters & maria
-function generateLunarTexture(): THREE.CanvasTexture {
+// Procedural Canvas Texture Generator for realistic Red Moon craters & maria (scales with NVIDIA Profile)
+function generateLunarTexture(profile: NvidiaProfile = 'turing'): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 512;
+  const isHighRes = profile === 'extreme' || profile === 'turing';
+  const width = isHighRes ? 2048 : (profile === 'smooth' ? 1024 : 512);
+  const height = isHighRes ? 1024 : (profile === 'smooth' ? 512 : 256);
+  const scale = width / 1024;
+
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext('2d')!;
 
   // 1. Base dark crimson & obsidian planetary gradient
-  const baseGrad = ctx.createLinearGradient(0, 0, 1024, 512);
+  const baseGrad = ctx.createLinearGradient(0, 0, width, height);
   baseGrad.addColorStop(0, '#150305');
   baseGrad.addColorStop(0.25, '#300609');
   baseGrad.addColorStop(0.55, '#520b11');
   baseGrad.addColorStop(0.8, '#7f121a');
   baseGrad.addColorStop(1, '#a81822');
   ctx.fillStyle = baseGrad;
-  ctx.fillRect(0, 0, 1024, 512);
+  ctx.fillRect(0, 0, width, height);
 
   // 2. Lunar Maria (vast ancient basaltic dark plains)
   const mariaBlobs = [
-    { x: 260, y: 180, rx: 110, ry: 75, rot: 0.2 },
-    { x: 420, y: 220, rx: 150, ry: 100, rot: -0.3 },
-    { x: 340, y: 310, rx: 80, ry: 60, rot: 0.5 },
-    { x: 680, y: 240, rx: 140, ry: 90, rot: 0.1 },
-    { x: 790, y: 190, rx: 90, ry: 70, rot: -0.4 },
-    { x: 550, y: 360, rx: 120, ry: 70, rot: 0.3 },
+    { x: 260 * scale, y: 180 * scale, rx: 110 * scale, ry: 75 * scale, rot: 0.2 },
+    { x: 420 * scale, y: 220 * scale, rx: 150 * scale, ry: 100 * scale, rot: -0.3 },
+    { x: 340 * scale, y: 310 * scale, rx: 80 * scale, ry: 60 * scale, rot: 0.5 },
+    { x: 680 * scale, y: 240 * scale, rx: 140 * scale, ry: 90 * scale, rot: 0.1 },
+    { x: 790 * scale, y: 190 * scale, rx: 90 * scale, ry: 70 * scale, rot: -0.4 },
+    { x: 550 * scale, y: 360 * scale, rx: 120 * scale, ry: 70 * scale, rot: 0.3 },
   ];
 
-  ctx.filter = 'blur(16px)';
+  ctx.filter = `blur(${Math.round(16 * scale)}px)`;
   mariaBlobs.forEach(({ x, y, rx, ry, rot }) => {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(rot);
-    const grad = ctx.createRadialGradient(0, 0, 10, 0, 0, rx);
+    const grad = ctx.createRadialGradient(0, 0, 10 * scale, 0, 0, rx);
     grad.addColorStop(0, 'rgba(12, 1, 3, 0.88)');
     grad.addColorStop(0.6, 'rgba(32, 4, 7, 0.6)');
     grad.addColorStop(1, 'rgba(32, 4, 7, 0)');
@@ -50,11 +58,12 @@ function generateLunarTexture(): THREE.CanvasTexture {
   });
   ctx.filter = 'none';
 
-  // 3. High-density crater procedural distribution
-  for (let i = 0; i < 260; i++) {
-    const cx = Math.random() * 1024;
-    const cy = Math.random() * 512;
-    const r = Math.random() * Math.random() * 18 + 2;
+  // 3. High-density crater procedural distribution scaled by GPU Profile
+  const craterCount = profile === 'extreme' ? 440 : (profile === 'turing' ? 350 : (profile === 'smooth' ? 200 : 90));
+  for (let i = 0; i < craterCount; i++) {
+    const cx = Math.random() * width;
+    const cy = Math.random() * height;
+    const r = (Math.random() * Math.random() * 18 + 2) * scale;
 
     ctx.fillStyle = 'rgba(10, 1, 2, 0.75)';
     ctx.beginPath();
@@ -67,7 +76,7 @@ function generateLunarTexture(): THREE.CanvasTexture {
     ctx.arc(cx, cy, r, Math.PI * 0.85, Math.PI * 1.85);
     ctx.stroke();
 
-    if (r > 12 && Math.random() > 0.5) {
+    if (r > 12 * scale && Math.random() > 0.5) {
       ctx.strokeStyle = 'rgba(255, 228, 230, 0.12)';
       ctx.lineWidth = 1;
       const rayCount = 8;
@@ -83,7 +92,7 @@ function generateLunarTexture(): THREE.CanvasTexture {
   }
 
   // 4. Subtle micro-grain noise across the surface
-  const imgData = ctx.getImageData(0, 0, 1024, 512);
+  const imgData = ctx.getImageData(0, 0, width, height);
   const data = imgData.data;
   for (let p = 0; p < data.length; p += 4) {
     const noise = (Math.random() - 0.5) * 14;
@@ -135,7 +144,12 @@ function isInteractiveElement(target: EventTarget | null): boolean {
   );
 }
 
-export const Spatial3DCanvas: React.FC<Spatial3DCanvasProps> = ({ isPlaying, onMoonInteract }) => {
+export const Spatial3DCanvas: React.FC<Spatial3DCanvasProps> = ({
+  isPlaying,
+  onMoonInteract,
+  profile = 'turing',
+  onGpuDetected,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -156,13 +170,26 @@ export const Spatial3DCanvas: React.FC<Spatial3DCanvasProps> = ({ isPlaying, onM
     camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const maxDpr = profile === 'extreme' ? 2.5 : (profile === 'turing' ? 2.0 : 1.5);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxDpr));
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0x000000, 0);
     container.appendChild(renderer.domElement);
 
-    // 2. Procedural Red Moon Mesh
-    const moonTexture = generateLunarTexture();
+    // Detect active WebGL Renderer and notify parent
+    try {
+      const gl = renderer.getContext();
+      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+      if (debugInfo) {
+        const unmasked = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+        if (unmasked) onGpuDetected?.(unmasked);
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Procedural Red Moon Mesh (Tuned to NVIDIA Profile)
+    const moonTexture = generateLunarTexture(profile);
     const particleTexture = generateParticleTexture();
 
     const moonRadius = 6.6;
@@ -305,8 +332,8 @@ export const Spatial3DCanvas: React.FC<Spatial3DCanvasProps> = ({ isPlaying, onM
       onMoonInteract?.();
     };
 
-    // 7. Deep Cosmic Starfield
-    const starCount = 1400;
+    // 7. Deep Cosmic Starfield (Particle budget tuned to NVIDIA GPU Profile)
+    const starCount = profile === 'extreme' ? 3000 : (profile === 'turing' ? 2200 : (profile === 'smooth' ? 1200 : 500));
     const starGeo = new THREE.BufferGeometry();
     const starPositions = new Float32Array(starCount * 3);
     const starColors = new Float32Array(starCount * 3);
@@ -348,7 +375,7 @@ export const Spatial3DCanvas: React.FC<Spatial3DCanvasProps> = ({ isPlaying, onM
     scene.add(starSystem);
 
     // 8. Floating Near-Field Cosmic Ember Motes
-    const emberCount = 80;
+    const emberCount = profile === 'extreme' || profile === 'turing' ? 140 : 70;
     const emberGeo = new THREE.BufferGeometry();
     const emberPositions = new Float32Array(emberCount * 3);
     const emberVelocities = new Float32Array(emberCount);
@@ -611,7 +638,7 @@ export const Spatial3DCanvas: React.FC<Spatial3DCanvasProps> = ({ isPlaying, onM
       emberMat.dispose();
       renderer.dispose();
     };
-  }, [isPlaying, onMoonInteract]);
+  }, [isPlaying, onMoonInteract, profile]);
 
   return (
     <div

@@ -6,9 +6,10 @@ interface StepStatusProps {
   network: NetworkInfo | null;
   onSelectUrlForQR: (url: string) => void;
   onGoToNext: () => void;
+  onGoToGuide?: () => void;
 }
 
-export const StepStatus: React.FC<StepStatusProps> = ({ network, onSelectUrlForQR, onGoToNext }) => {
+export const StepStatus: React.FC<StepStatusProps> = ({ network, onSelectUrlForQR, onGoToNext, onGoToGuide }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const handleCopy = (text: string, key: string) => {
@@ -171,6 +172,28 @@ export const StepStatus: React.FC<StepStatusProps> = ({ network, onSelectUrlForQ
                 {copiedKey === 'cmd' ? 'Copied' : 'Copy'}
               </button>
             </div>
+
+            {onGoToGuide && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{
+                  width: '100%',
+                  marginTop: '0.65rem',
+                  padding: '0.6rem 0.9rem',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  background: 'var(--cinema-red)',
+                }}
+                onClick={onGoToGuide}
+              >
+                <span>Open 3-Step Tailscale Setup Guide &rarr;</span>
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Network, QrCode, Sliders, Shield } from 'lucide-react';
+import { X, Network, QrCode, Sliders, Shield, BookOpen } from 'lucide-react';
 import { NetworkInfo, StreamSettings } from '../../types/media';
 import { StepStatus } from './StepStatus';
 import { StepQRCode } from './StepQRCode';
 import { StepSettings } from './StepSettings';
+import { StepGuide } from './StepGuide';
 
 interface TailscaleModalProps {
   isOpen: boolean;
@@ -11,6 +12,8 @@ interface TailscaleModalProps {
   network: NetworkInfo | null;
   settings: StreamSettings;
   onSaveSettings: (settings: StreamSettings) => void;
+  authToken?: string | null;
+  onRefreshNetwork?: () => void;
 }
 
 export const TailscaleModal: React.FC<TailscaleModalProps> = ({
@@ -19,6 +22,8 @@ export const TailscaleModal: React.FC<TailscaleModalProps> = ({
   network,
   settings,
   onSaveSettings,
+  authToken,
+  onRefreshNetwork,
 }) => {
   const [activeStep, setActiveStep] = useState<number>(1);
   const [selectedUrlForQR, setSelectedUrlForQR] = useState<string>('');
@@ -52,8 +57,9 @@ export const TailscaleModal: React.FC<TailscaleModalProps> = ({
 
   const steps = [
     { number: 1, title: 'Network & Mesh', icon: Network },
-    { number: 2, title: 'Mobile QR Pairing', icon: QrCode },
-    { number: 3, title: 'Stream Settings', icon: Sliders },
+    { number: 2, title: 'Setup Guide', icon: BookOpen },
+    { number: 3, title: 'Mobile QR Pairing', icon: QrCode },
+    { number: 4, title: 'Stream Settings', icon: Sliders },
   ];
 
   return (
@@ -97,11 +103,11 @@ export const TailscaleModal: React.FC<TailscaleModalProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '1.25rem 1.5rem',
+            padding: 'clamp(0.75rem, 2.5vw, 1.25rem) clamp(0.75rem, 3vw, 1.5rem)',
             borderBottom: '1px solid var(--border-glass)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}>
             <div
               style={{
                 width: '36px',
@@ -113,16 +119,17 @@ export const TailscaleModal: React.FC<TailscaleModalProps> = ({
                 justifyContent: 'center',
                 color: '#fff',
                 boxShadow: '0 2px 8px var(--accent-primary-glow)',
+                flexShrink: 0,
               }}
             >
               <Shield size={20} />
             </div>
-            <div>
-              <h3 id="tailscale-modal-title" style={{ fontSize: '1.15rem', fontWeight: 700, color: '#f8fafc' }}>
+            <div style={{ minWidth: 0 }}>
+              <h3 id="tailscale-modal-title" style={{ fontSize: 'clamp(0.95rem, 2.5vw, 1.15rem)', fontWeight: 700, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 Tailscale Remote Access Hub
               </h3>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                Stream your laptop's media safely from any phone, tablet, or external PC
+              <p style={{ fontSize: '0.725rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Stream your laptop's media safely from any phone or tablet
               </p>
             </div>
           </div>
@@ -131,14 +138,14 @@ export const TailscaleModal: React.FC<TailscaleModalProps> = ({
             className="btn btn-secondary btn-icon"
             onClick={onClose}
             aria-label="Close dialog"
-            style={{ width: '36px', height: '36px' }}
+            style={{ width: '36px', height: '36px', flexShrink: 0 }}
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Step Progress Tracker */}
-        <div style={{ padding: '0 1.5rem', marginTop: '1rem' }}>
+        <div style={{ padding: '0 clamp(0.75rem, 3vw, 1.5rem)', marginTop: '0.75rem' }}>
           <div
             style={{
               display: 'flex',
@@ -159,14 +166,14 @@ export const TailscaleModal: React.FC<TailscaleModalProps> = ({
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
+                    gap: '0.4rem',
                     background: 'none',
                     border: 'none',
                     cursor: 'pointer',
                     color: isActive ? '#f8fafc' : isDone ? 'var(--color-success)' : '#64748b',
-                    fontSize: '0.825rem',
+                    fontSize: '0.8rem',
                     fontWeight: isActive ? 600 : 500,
-                    padding: '4px 8px',
+                    padding: '4px 6px',
                     borderRadius: 'var(--radius-sm)',
                     transition: 'all var(--transition-fast)',
                   }}
@@ -188,11 +195,12 @@ export const TailscaleModal: React.FC<TailscaleModalProps> = ({
                       justifyContent: 'center',
                       fontSize: '0.75rem',
                       fontWeight: 700,
+                      flexShrink: 0,
                     }}
                   >
                     {isDone ? '✓' : s.number}
                   </div>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span className="hide-mobile" style={{ alignItems: 'center', gap: '5px' }}>
                     <Icon size={14} />
                     {s.title}
                   </span>
@@ -206,7 +214,7 @@ export const TailscaleModal: React.FC<TailscaleModalProps> = ({
             <div
               style={{
                 height: '100%',
-                width: activeStep === 1 ? '33%' : activeStep === 2 ? '66%' : '100%',
+                width: activeStep === 1 ? '25%' : activeStep === 2 ? '50%' : activeStep === 3 ? '75%' : '100%',
                 background: 'linear-gradient(90deg, var(--accent-primary), var(--accent-cyan))',
                 transition: 'width var(--transition-normal)',
               }}
@@ -215,31 +223,42 @@ export const TailscaleModal: React.FC<TailscaleModalProps> = ({
         </div>
 
         {/* Modal Body Step Content */}
-        <div style={{ padding: '1.25rem 1.5rem 1.5rem', overflowY: 'auto' }}>
+        <div style={{ padding: '1rem clamp(0.75rem, 3vw, 1.5rem) 1.25rem', overflowY: 'auto' }}>
           {activeStep === 1 && (
             <StepStatus
               network={network}
               onSelectUrlForQR={(url) => setSelectedUrlForQR(url)}
-              onGoToNext={() => setActiveStep(2)}
+              onGoToNext={() => setActiveStep(3)}
+              onGoToGuide={() => setActiveStep(2)}
             />
           )}
 
           {activeStep === 2 && (
-            <StepQRCode
+            <StepGuide
               network={network}
-              activeUrl={selectedUrlForQR}
-              onChangeUrl={(url) => setSelectedUrlForQR(url)}
-              onGoToNext={() => setActiveStep(3)}
-              onGoToPrev={() => setActiveStep(1)}
+              onGoToStatus={() => setActiveStep(1)}
+              onGoToQR={() => setActiveStep(3)}
+              authToken={authToken}
+              onRefreshNetwork={onRefreshNetwork}
             />
           )}
 
           {activeStep === 3 && (
+            <StepQRCode
+              network={network}
+              activeUrl={selectedUrlForQR}
+              onChangeUrl={(url) => setSelectedUrlForQR(url)}
+              onGoToNext={() => setActiveStep(4)}
+              onGoToPrev={() => setActiveStep(1)}
+            />
+          )}
+
+          {activeStep === 4 && (
             <StepSettings
               settings={settings}
               onSaveSettings={onSaveSettings}
               onClose={onClose}
-              onGoToPrev={() => setActiveStep(2)}
+              onGoToPrev={() => setActiveStep(3)}
             />
           )}
         </div>

@@ -1,5 +1,16 @@
 export type MediaType = 'video' | 'audio';
 
+export type VideoQualityLevel = 'auto' | '1080p' | '720p' | '480p' | '360p' | 'source';
+
+export interface VideoQualityOption {
+  id: VideoQualityLevel;
+  label: string;
+  badge: string;
+  bitrate: string;
+  resolution: string;
+  description?: string;
+}
+
 export interface MediaItem {
   id: string;
   name: string;
@@ -65,4 +76,18 @@ export interface StreamSettings {
   videoAutoplay: boolean;
   customHostOverride: string;
 }
+
+export interface RecommendationMatch {
+  item: MediaItem;
+  matchScore: number;
+  reason: string;
+}
+
+export interface UserHistoryRecord {
+  id: string;
+  lastPlayed: number;
+  playCount: number;
+  completionRatio: number;
+}
+
 
